@@ -10,25 +10,36 @@ time openstack overcloud deploy --templates ~/templates \
      -e ~/templates/environments/docker.yaml \
      -e ~/templates/environments/low-memory-usage.yaml \
      -e ~/templates/environments/disable-telemetry.yaml \
+     -e ~/templates/environments/debug.yaml \
      -e ~/docker_registry.yaml \
-     --compute-scale 0 --control-scale 1 --ntp-server 10.5.26.10 \
+     --compute-scale 0 --control-scale 1 --ntp-server time.google.com \
      --stack control-plane
 
-# Update /etc/hosts, deploy-compute can then use the hostname to ssh
+# Update /etc/hosts
 
 HOSTFILE=/etc/hosts
 
 ## * Remove any old overcloud host entries from `/etc/hosts`.
 ## ::
 
-sudo sed -i '/^## BEGIN CONTROL-PLANE HOSTS/,/^## END CONTROL_PLANE HOSTS/ d' $HOSTFILE
+sudo sed -i '/^## BEGIN OVERCLOUD HOSTS/,/^## END OVERCLOUD HOSTS/ d' $HOSTFILE
 
 ## * Add overcloud hosts to `/etc/hosts`.
 ## ::
 
 cat <<EOF | sudo tee -a $HOSTFILE
-## BEGIN CONTROL-PLANE HOSTS  #nodocs
+## BEGIN OVERCLOUD HOSTS  #nodocs
 $(openstack stack output show control-plane HostsEntry -f value -c output_value)
 
-## END CONTROL-PLANE HOSTS    #nodocs
+## END OVERCLOUD HOSTS    #nodocs
 EOF
+
+for node in `openstack server list -c Name -f value`; do
+  ssh -o StrictHostKeyChecking=no heat-admin@${node} sudo sed -i \'/^# HEAT_HOSTS_START/,/^# HEAT_HOSTS_END/ d\' $HOSTFILE
+  cat <<EOF | ssh -o StrictHostKeyChecking=no heat-admin@${node} sudo tee -a $HOSTFILE
+# HEAT_HOSTS_START
+$(openstack stack output show control-plane HostsEntry -f value -c output_value)
+# HEAT_HOSTS_END
+EOF
+done
+
