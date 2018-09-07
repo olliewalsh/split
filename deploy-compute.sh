@@ -33,7 +33,7 @@ sudo sed -i '/^## BEGIN COMPUTE0 HOSTS/,/^## END COMPUTE0 HOSTS/ d' $HOSTFILE
 
 cat <<EOF | sudo tee -a $HOSTFILE
 ## BEGIN COMPUTE0 HOSTS  #nodocs
-$(openstack stack output show control-plane HostsEntry -f value -c output_value)
+$(openstack stack output show compute0 HostsEntry -f value -c output_value)
 
 ## END COMPUTE0 HOSTS    #nodocs
 EOF
